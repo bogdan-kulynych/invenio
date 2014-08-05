@@ -20,14 +20,18 @@
 require.config({
     baseUrl: '/',
     paths: {
-        jquery: 'js/jquery',
-        'jquery.form': 'js/jquery.form',
-        hgn: 'js/hgn',
-        hogan: 'js/hogan.amd',
-        text: 'js/text'
+        jquery: 'vendors/jquery/dist/jquery',
+        'jquery-ui': 'vendors/jquery-ui/jquery-ui',
+        'jqueryui-timepicker': 'vendors/jqueryui-timepicker-addon/src/jquery-ui-timepicker-addon',
+        'jquery-form': 'vendors/jquery-form/jquery.form',
+        hgn: 'vendors/requirejs-hogan-plugin/hgn',
+        hogan: 'vendors/hogan/web/builds/3.0.2/hogan-3.0.2.amd',
+        text: 'vendors/requirejs-hogan-plugin/text'
     },
     shim: {
         jquery: { exports: '$' },
-        'jquery.form': [ 'jquery' ]
+        'jquery-ui': [ 'jquery' ],
+        'jqueryui-timepicker': [ 'jquery-ui' ],
+        'jquery-form': [ 'jquery' ]
     }
 })

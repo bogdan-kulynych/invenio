@@ -44,22 +44,25 @@ install:
   - "sudo mkdir /etc/apache2/ssl"
   - "sudo /usr/sbin/make-ssl-cert generate-default-snakeoil /etc/apache2/ssl/apache.pem"
   - "travis_retry pip install -r requirements-docs.txt --quiet"
-  - "pybabel compile -f -d invenio/base/translations/"
+  - "python setup.py compile_catalog"
   - "inveniomanage config create secret-key"
   - "inveniomanage config set CFG_EMAIL_BACKEND flask.ext.email.backends.console.Mail"
   - "inveniomanage config set CFG_BIBSCHED_PROCESS_USER `whoami`"
   - "inveniomanage config set PACKAGES_EXCLUDE []"  # test all packages
   - "inveniomanage config set CFG_TMPDIR /tmp"
-  - "sudo su -c \"npm install --silent -g bower grunt-cli less clean-css uglify-js requirejs\""
-  - "npm install --silent"
+  - "sudo su -c \"npm install --silent -g bower less clean-css uglify-js requirejs\""
+  # All the step below this points are solely for test purposes, don't use them
+  # to setup your invenio installation. Please do RTFM instead (INSTALL.rst).
+  - "inveniomanage bower -i bower-base.json > bower.json"
   - "bower install"
-  - "travis_retry grunt"
-  - "inveniomanage collect"
+  - "inveniomanage config set COLLECT_STORAGE invenio.ext.collect.storage.link"
+  - "inveniomanage collect > /dev/null"
   - "inveniomanage assets build"
   - "inveniomanage config set CLEANCSS_BIN false"  # deactivate all the things
   - "inveniomanage config set LESS_BIN false"      # false is /usr/bin/false
   - "inveniomanage config set REQUIREJS_BIN false"
   - "inveniomanage config set UGLIFYJS_BIN false"
+  - "inveniomanage config set ASSETS_AUTO_BUILD False"
 
 before_script:
   - "inveniomanage apache create-config"

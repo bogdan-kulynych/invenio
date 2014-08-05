@@ -17,7 +17,6 @@
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
  */
 
-require(['jquery', 'jquery.form'], function($) {
-    // loading all the jQuery modules for the not require.js ready scripts
-    // everywhere.
+require(['jquery', 'jquery-ui', 'jqueryui-timepicker'], function ($) {
+    // loading the jQuery UI modules globally.
 })

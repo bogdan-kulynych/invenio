@@ -18,9 +18,36 @@
  */
 
 
-var DEPOSIT_FORM = (function( $ ){
+define(function(require, exports, module) {
+    'use strict';
+
+    var $ = require('jquery'),
+        tpl_file_entry = require('hgn!./templates/file_entry'),
+        tpl_file_link = require('hgn!./templates/file_link'),
+        tpl_flash_message = require('hgn!./templates/flash_message'),
+        tpl_field_message = require('hgn!./templates/field_message')
+
+    // provides $.fn.dynamicFieldList
+    require('./dynamic_field_list')
+    // provides $.fn.sortable
+    require('jquery-ui')
+
+    var messages = {
+        errors: 'The form was saved, but there were errors. Please see below.',
+        status_saving: 'Saving <img src="/img/loading.gif" />',
+        status_error: '<span class="text-danger">Not saved due to server error. Please try to reload your browser <i class="glyphicon glyphicon-warning-sign"></i></span>',
+        status_saved: 'Saved <i class="fa fa-check"></i>',
+        status_saved_with_error: '<span class="text-warning">Saved, but with errors <i class="glyphicon glyphicon-warning-sign"></i></span>',
+        success: 'Successfully saved.',
+        loader: '<img src="/img/loading.gif"/>',
+        loader_success: '<span class="text-success"> <i class="fa fa-check"></i></span>',
+        loader_failed: '<span class="text-muted"> <i class="glyphicon glyphicon-warning-sign"></i></span>'
+    }
 
   var empty_cssclass = "empty-element";
+
+  // Globals
+  var uploader;
 
   //
   // Helpers
@@ -78,7 +105,7 @@ var DEPOSIT_FORM = (function( $ ){
           $("#" + instance).val(editor.getData())
         });
       }
-      fields = $(selector).serializeArray();
+      var fields = $(selector).serializeArray();
       if(uploader !== null){
           fields.push({name: 'files', value: serialize_files('#filelist')});
       }
@@ -179,7 +206,7 @@ var DEPOSIT_FORM = (function( $ ){
     bytes = +bytes / Math.pow( 2, 10*i );
 
     // Rounds to 2 decimals places.
-      bytes_to_fixed = bytes.toFixed(2);
+      var bytes_to_fixed = bytes.toFixed(2);
       if( bytes.toString().length > bytes_to_fixed.toString().length ){
           bytes = bytes_to_fixed;
       }
@@ -216,7 +243,7 @@ var DEPOSIT_FORM = (function( $ ){
           var $state_group_name = $("#state-group-" + name);
 
           $state_name.html(
-              tpl_field_message.render({
+              tpl_field_message({
                   name: name,
                   state: state,
                   messages: data.messages
@@ -272,7 +299,7 @@ var DEPOSIT_FORM = (function( $ ){
                   size: file.size
               };
 
-              $('#filelist').append(tpl_file_entry.render({
+              $('#filelist').append(tpl_file_entry({
                   id: id,
                   filename: file.name,
                   filesize: getBytesWithUnit(file.size)
@@ -343,21 +370,21 @@ var DEPOSIT_FORM = (function( $ ){
   /**
    * Set value of status indicator in form (e.g. saving, saved, ...)
    */
-  function set_status(tpl, ctx) {
+  function set_status(html) {
       $('.status-indicator').show();
-      $('.status-indicator').html(tpl.render(ctx));
+      $('.status-indicator').html(html);
   }
 
-  function set_loader(selector, tpl, ctx) {
+  function set_loader(selector, html) {
       $(selector).show();
-      $(selector).html(tpl.render(ctx));
+      $(selector).html(html);
   }
 
   /**
    * Flash a message in the top.
    */
   function _flash_message(ctx) {
-      $('#flash-message').html(tpl_flash_message.render(ctx));
+      $('#flash-message').html(tpl_flash_message(ctx));
       $('#flash-message').show('fast');
   }
 
@@ -365,40 +392,38 @@ var DEPOSIT_FORM = (function( $ ){
    * Save field value value
    */
   function save_field(url, name, value) {
-      request_data = {};
-      request_data[name] = value;
-      save_data(url, request_data);
+      save_data(url, {name: value})
   }
   /**
    * Save field value value
    */
   function save_data(url, request_data, flash_message, success_callback, failure_callback) {
-      loader_selector = '#' + name + '-loader';
+      var loader_selector = '#' + name + '-loader';
 
       if(flash_message === undefined){
           flash_message = false;
       }
 
-      set_status(tpl_webdeposit_status_saving, request_data);
-      set_loader(loader_selector, tpl_loader, request_data);
+      set_status(messages.status_saving);
+      set_loader(loader_selector, messages.loader);
 
       $.ajax(
           json_options({url: url, data: request_data})
       ).done(function(data) {
           var errors = handle_response(data);
-          set_loader(loader_selector, tpl_loader_success, request_data);
+          set_loader(loader_selector, messages.loader_success);
           if(errors) {
-              set_status(tpl_webdeposit_status_saved_with_errors, request_data);
+              set_status(messages.status_saved_with_errors);
               if(flash_message) {
-                  _flash_message({state:'warning', message: tpl_message_errors.render({})});
+                  _flash_message({state:'warning', message: messages.errors});
               }
               if(failure_callback !== undefined){
                   failure_callback();
               }
           } else {
-              set_status(tpl_webdeposit_status_saved, request_data);
+              set_status(messages.status_saved);
               if(flash_message) {
-                  _flash_message({state:'success', message: tpl_message_success.render({})});
+                  _flash_message({state:'success', message: messages.success});
               }
               if(success_callback !== undefined){
                   success_callback();
@@ -406,8 +431,8 @@ var DEPOSIT_FORM = (function( $ ){
           }
 
       }).fail(function() {
-          set_status(tpl_webdeposit_status_error, request_data);
-          set_loader(loader_selector, tpl_loader_success, request_data);
+          set_status(messages.status_error);
+          set_loader(loader_selector, messages.loader_failed);
       });
   }
 
@@ -436,6 +461,7 @@ var DEPOSIT_FORM = (function( $ ){
       }
 
       var had_error = false;
+
       uploader = new plupload.Uploader({
           // General settings
           runtimes : 'html5',
@@ -466,7 +492,7 @@ var DEPOSIT_FORM = (function( $ ){
           }
       }
 
-      queue_progress = new plupload.QueueProgress();
+      new plupload.QueueProgress();
 
       uploader.init();
 
@@ -501,7 +527,7 @@ var DEPOSIT_FORM = (function( $ ){
                   var plfile = fake_file(file);
 
                   uploader.files.push(plfile);
-                  $('#filelist').append(tpl_file_entry.render({
+                  $('#filelist').append(tpl_file_entry({
                       id: plfile.id,
                       filename: plfile.name,
                       filesize: getBytesWithUnit(plfile.size),
@@ -557,14 +583,14 @@ var DEPOSIT_FORM = (function( $ ){
               }),
               dataType: "json"
           }).done(function(data){
-              file.server_id = data['id'];
+              file.server_id = data.id;
 
               $('#' + file.id + " .progress").removeClass("progress-striped");
               $('#' + file.id + " .progress").hide();
               $('#' + file.id + " .progress-bar").css('width', "100%");
-              $('#' + file.id + '_link').html(tpl_file_link.render({
+              $('#' + file.id + '_link').html(tpl_file_link({
                   filename: file.name,
-                  download_url: get_file_url + "?file_id=" + data['id']
+                  download_url: get_file_url + "?file_id=" + data.id
               }));
 
               var plfile = fake_file(file);
@@ -670,15 +696,15 @@ var DEPOSIT_FORM = (function( $ ){
               // Check for existing file
               var removed = false;
               for(var j = 0; j<up.files.length; j++){
-                  existing_file = up.files[j];
+                  var existing_file = up.files[j];
                   if(existing_file.id != file.id && file.name == existing_file.name){
                       filename_already_exists.push(file.name);
                       up.removeFile(file);
-                      var removed = true;
+                      removed = true;
                   }
               }
               if(!removed){
-                  $('#filelist').append(tpl_file_entry.render({
+                  $('#filelist').append(tpl_file_entry({
                           id: file.id,
                           filename: file.name,
                           filesize: getBytesWithUnit(file.size),
@@ -699,9 +725,12 @@ var DEPOSIT_FORM = (function( $ ){
       });
 
       uploader.bind('FileUploaded', function(up, file, responseObj) {
+          var res_data = {}
           try{
               res_data = JSON.parse(responseObj.response);
-          } catch (err) {}
+          } catch (err) {
+              console.error(err)
+          }
 
           file.server_id = res_data.id;
 
@@ -709,9 +738,9 @@ var DEPOSIT_FORM = (function( $ ){
           $('#' + file.id + " .progress-bar").css('width', "100%");
           $('#' + file.id + ' .rmlink').show();
           $('#' + file.id + " .progress").hide();
-          $('#' + file.id + '_link').html(tpl_file_link.render({
+          $('#' + file.id + '_link').html(tpl_file_link({
               filename: file.name,
-              download_url: get_file_url + "?file_id=" + res_data['id']
+              download_url: get_file_url + "?file_id=" + res_data.id
           }));
           if (uploader.total.queued === 0)
               $('#stopupload').hide();
@@ -859,7 +888,7 @@ var DEPOSIT_FORM = (function( $ ){
   function init_field_lists(selector, url, autocomplete_selector, url_autocomplete) {
     function serialize_and_save(options) {
       // Save list on remove element, sorting and paste of list
-      data = $('#'+options.prefix).serialize_object();
+      var data = $('#'+options.prefix).serialize_object();
       if($.isEmptyObject(data)){
           data[options.prefix] = [];
       }
@@ -884,8 +913,8 @@ var DEPOSIT_FORM = (function( $ ){
       pasted: serialize_and_save,
     };
 
-    $(selector).each(function(){
-      field_lists[$(this).attr('id')] = $(this).fieldlist(opts);
+    $(selector).dynamicFieldList(opts).each(function(index, fieldList){
+      field_lists[fieldList.element.id] = fieldList;
     });
   }
 
@@ -923,7 +952,7 @@ var DEPOSIT_FORM = (function( $ ){
           } else {
               CKEDITOR.replace(this, options);
           }
-          ckeditor = CKEDITOR.instances[$(this).attr('name')];
+          var ckeditor = CKEDITOR.instances[$(this).attr('name')];
           ckeditor.on('blur',function(e){
               save_field(url, e.editor.name, e.editor.getData());
           });
@@ -943,7 +972,7 @@ var DEPOSIT_FORM = (function( $ ){
               handle_selection = typeahead_selection;
           }
 
-          if($(item).parents('.' + empty_cssclass).length == 0) {
+          if($(item).parents('.' + empty_cssclass).length === 0) {
               init_typeaheadjs(item, url, save_url, handle_selection);
           }
       });
@@ -1008,9 +1037,12 @@ var DEPOSIT_FORM = (function( $ ){
                   // Clear typeahead field
                   try {
                      $(item).typeahead('val', "");
-                  } catch (error) {} //Suppress error
+                  } catch (error) {
+                     //Suppress error
+                     console.error(error)
+                  }
                   // Save list
-                  data = $('#'+field_list_name).serialize_object();
+                  var data = $('#'+field_list_name).serialize_object();
                   if($.isEmptyObject(data)){
                       data[options.prefix] = [];
                   }
@@ -1024,7 +1056,10 @@ var DEPOSIT_FORM = (function( $ ){
               if(field_name == name) {
                   try {
                      $(item).typeahead('setQuery', datum.fields[field_name]);
-                  } catch (error) {} //Suppress error
+                  } catch (error) {
+                     //Suppress error
+                     console.error(error)
+                  }
               }
           }
           //FIXME: sends wrong field names
@@ -1050,7 +1085,7 @@ var DEPOSIT_FORM = (function( $ ){
                       url: file.link
                   };
 
-                  $('#filelist').append(tpl_file_entry.render({
+                  $('#filelist').append(tpl_file_entry({
                       id: dbfile.id,
                       filename: file.name,
                       filesize: getBytesWithUnit(file.bytes),
@@ -1090,359 +1125,36 @@ var DEPOSIT_FORM = (function( $ ){
       });
   }
 
-
-  /**
-   *
-   */
-  $.fn.fieldlist = function(opts) {
-      var options = $.extend({}, $.fn.fieldlist.defaults, opts);
-      if (options.prefix === null) {
-          options.prefix = this.attr('id');
-      }
-      var template = this.find('.' + options.empty_cssclass);
-      var last_index = $("#" + options.prefix + options.sep +  options.last_index);
-      var field_regex = new RegExp("(" + options.prefix + options.sep + "(\\d+|" + options.index_suffix + "))"+ options.sep +"(.+)");
-      // Get template name from options or the empty elements data attribute
-      var tag_template = Hogan.compile($(this).data('tagTemplate') || '');
-
-      /**
-       * Get next index
-       */
-      var get_next_index = function(){
-          return parseInt(last_index.val(), 10) + 1;
-      };
-
-      /**
-       * Set value of last index
-       */
-      var set_last_index = function(idx){
-          return last_index.val(idx);
-      };
-
-      /**
-       * Update attributes in a single tag
-       */
-      var update_attr_index = function(tag, idx) {
-          var id_regex = new RegExp("(" + options.prefix + options.sep + "(\\d+|" + options.index_suffix + "))");
-          var new_id = options.prefix + options.sep + idx;
-          ['for', 'id', 'name'].forEach(function(attr_name){
-              if($(tag).attr(attr_name)){
-                 $(tag).attr(attr_name, $(tag).attr(attr_name).replace(id_regex, new_id));
-              }
-          });
-      };
-
-      /**
-       * Update index in attributes for a single element (i.e all tags inside
-       * element)
-       */
-      var update_element_index = function(element, idx) {
-          update_attr_index(element, idx);
-          $(element).find('*').each(function(){
-              update_attr_index(this, idx);
-          });
-      };
-
-      /**
-       * Update indexes of all elements
-       */
-      var update_elements_indexes = function(){
-          // Update elements indexes of all other elements
-          var all_elements = $('#' + options.prefix + " ." + options.element_css_class);
-          var num_elements = all_elements.length;
-          for (var i=0; i<num_elements; i++) {
-              update_element_index(all_elements[i], i);
-          }
-          set_last_index(num_elements-1);
-      };
-
-      /**
-       * Update values of fields for an element
-       */
-      var update_element_values = function (root, data, field_prefix_index, selector_prefix){
-          var field_prefix, newdata;
-
-          if(selector_prefix ===undefined){
-              selector_prefix = '#'+options.prefix+options.sep+options.index_suffix+options.sep;
-          }
-
-          if(field_prefix_index === undefined){
-              field_prefix = options.prefix+options.sep+options.index_suffix+options.sep;
-          } else {
-              field_prefix = options.prefix+options.sep+field_prefix_index+options.sep;
-          }
-          if(root === null) {
-              root = $(document);
-          }
-
-          //Update field values if data exists
-          if(data !== null){
-              // Remove prefix from field name
-              newdata = {};
-              if (typeof data == 'object'){
-                  for(var field in data) {
-                      if(field.indexOf(field_prefix) === 0){
-                          newdata[field.slice(field_prefix.length)] = data[field];
-                      } else {
-                          newdata[field] = data[field];
-                      }
-                  }
-                  // Update value for each field.
-                  $.each(newdata, function(field, value){
-                      var input = root.find(selector_prefix+field);
-                      if(input.length !== 0) {
-                          input.val(value);
-                      }
-                  });
-              } else {
-                  newdata['value'] = data;
-                  var input = root.find('#'+options.prefix+options.sep+options.index_suffix);
-                  if(input.length !== 0) {
-                      // Keep old value
-                      input.val(input.val()+data);
-                  }
-              }
-
-              root.find("."+options.tag_title_cssclass).html(
-                  tag_template.render(newdata)
-              );
-          }
-      };
-
-      var get_field_name = function(name_or_id) {
-          result = field_regex.exec(name_or_id);
-          if(result !== null){
-              return result[3];
-          }
-          return null;
-      };
-
-      var get_field_prefix = function(name_or_id) {
-          result = field_regex.exec(name_or_id);
-          if(result !== null){
-              return result[1];
-          }
-          return null;
-      };
-
-      /**
-       * Handler for remove element events
-       */
-      var remove_element = function(e){
-          //
-          // Delete action
-          //
-          e.preventDefault();
-
-          // Find and remove element
-          var old_element = $(this).parents("." + options.element_css_class);
-          old_element.hide('fast', function(){
-              // Give hide animation time to complete
-              old_element.remove();
-              update_elements_indexes();
-
-              // Callback
-              if (options.removed) {
-                  options.removed(options, old_element);
-              }
-          });
-      };
-
-      /**
-       * Handler for sort element events
-       */
-      var sort_element = function (e, ui) {
-          update_elements_indexes();
-          // Callback
-          if (options.updated) {
-              options.updated(options, ui.item);
-          }
-      };
-
-      var update_element = function (data, idx){
-          //
-          // Update action
-          //
-
-          // Update elements indexes of all other elements
-          var all_elements = $('#' + options.prefix + " ." + options.element_css_class);
-          var num_elements = all_elements.length;
-          if (idx < num_elements){
-              element = $(all_elements[idx]);
-              update_element_values(element, data, idx, '#'+options.prefix+options.sep+idx+options.sep);
-          }
-      };
-
-      /**
-       * Handler for add new element events
-       */
-      var append_element = function (data, field_prefix_index){
-          //
-          // Append action
-          //
-          var new_element = template.clone();
-          var next_index = get_next_index();
-          // Remove class
-          new_element.removeClass(options.empty_cssclass);
-          new_element.addClass(options.element_css_class);
-          // Pre-populate field values
-          update_element_values(new_element, data, field_prefix_index);
-          // Update ids
-          update_element_index(new_element, next_index);
-          // Insert before template element
-          new_element.hide();
-          new_element.insertBefore($(template));
-          new_element.show('fast');
-          // Update last_index
-          set_last_index(next_index);
-          // Add delete button handler
-          new_element.find('.' + options.remove_cssclass).click(remove_element);
-          // Add paste handler for some fields
-          if( options.on_paste !== null && options.on_paste_elements !== null) {
-              new_element.find(options.on_paste_elements).on('paste', on_paste);
-          }
-          // Callback
-          if (options.added) {
-              options.added(options, new_element);
-          }
-      };
-
-      /**
-       * On paste event handler, wrapping the user-defined paste handler to
-       * for ease of use.
-       */
-      var on_paste = function (e){
-          var element = $(e.target);
-          var root_element = element.parents("." + options.element_css_class);
-          var data = e.originalEvent.clipboardData.getData("text/plain");
-          var field_name = get_field_name(element.attr("id"));
-          var prefix = "#" + get_field_prefix(element.attr("id")) + options.sep;
-
-          if(options.on_paste !== null && data !== null) {
-              if(options.on_paste(root_element, element, prefix, field_name, data, append_element)) {
-                  e.preventDefault();
-              }
-          }
-      };
-
-      /**
-       * Factory method for creating on paste event handlers. Allow handlers to
-       * only care about splitting string into data elements.
-       */
-      var create_paste_handler = function (splitter){
-          var on_paste_handler = function(root_element, element, selector_prefix, field, clipboard_data, append_element){
-              var elements_values = splitter(field, clipboard_data);
-              if(elements_values.length > 0) {
-                  $.each(elements_values, function(idx, clipboard_data){
-                      if(idx === 0) {
-                          update_element_values(root_element, clipboard_data, undefined, selector_prefix);
-                      } else {
-                          append_element(clipboard_data);
-                      }
-                  });
-                  // Callback
-                  if (options.pasted) {
-                      options.pasted(options);
-                  }
-                  return true;
-              } else {
-                  return false;
-              }
-          };
-
-          return on_paste_handler;
-      };
-
-      var create = function(item){
-          // Hook add/remove buttons on already rendered elements
-          $('#' + options.prefix + " ." + options.element_css_class + " ." + options.remove_cssclass).click(remove_element);
-          $('#' + options.prefix + " ." + options.add_cssclass).click(append_element);
-
-          // Hook for detecting on paste events
-          if( options.on_paste !== null && options.on_paste_elements !== null) {
-              options.on_paste = create_paste_handler(options.on_paste);
-              $('#' + options.prefix + " " + options.on_paste_elements).on('paste', on_paste);
-          }
-
-          // Make list sortable
-          if(options.sortable){
-              var sortable_options = {
-                  items: "." + options.element_css_class,
-                  update: sort_element,
-              };
-
-              if($(item).find("."+options.sort_cssclass).length !== 0){
-                  sortable_options.handle = "." + options.sort_cssclass;
-              }
-
-              $(item).sortable(sortable_options);
-          }
-
-          return item;
-      };
-
-      create(this);
-
-      return {
-          append_element: append_element,
-          update_element: update_element,
-          options: options,
-      };
-  };
-
-  /** Field list plugin defaults */
-  $.fn.fieldlist.defaults = {
-      prefix: null,
-      sep: '-',
-      last_index: "__last_index__",
-      index_suffix: "__index__",
-      empty_cssclass: empty_cssclass,
-      element_css_class: "field-list-element",
-      remove_cssclass: "remove-element",
-      add_cssclass: "add-element",
-      sort_cssclass: "sort-element",
-      tag_title_cssclass: "tag-title",
-      added: null,
-      removed: null,
-      updated: null,
-      pasted: null,
-      on_paste_elements: "input",
-      on_paste: null, //paste_newline_splitter,
-      sortable: true,
-      js_template: null,
-  };
-
-  // Return public methods
-  return {
-    check_status: check_status,
-    clear_error: clear_error,
-    create_deposition: create_deposition,
-    flash_message: _flash_message,
-    getBytesWithUnit: getBytesWithUnit,
-    handle_field_msg: handle_field_msg,
-    handle_field_values: handle_field_values,
-    handle_response: handle_response,
-    init_autocomplete: init_autocomplete,
-    init_buttons: init_buttons,
-    init_ckeditor: init_ckeditor,
-    init_field_lists: init_field_lists,
-    init_inputs: init_inputs,
-    init_plupload: init_plupload,
-    init_save: init_save,
-    init_submit: init_submit,
-    init_typeaheadjs: init_typeaheadjs,
-    json_options: json_options,
-    paste_newline_splitter: paste_newline_splitter,
-    save_data: save_data,
-    save_field: save_field,
-    serialize_files: serialize_files,
-    serialize_form: serialize_form,
-    serialize_object: serialize_object,
-    set_loader: set_loader,
-    set_status: set_status,
-    submit: submit,
-    typeahead_selection: typeahead_selection,
-    unique_id: unique_id,
-  };
-
-}( window.jQuery ));
+    // Return public methods
+    module.exports = exports.DEPOSIT_FORM = window.DEPOSIT_FORM = {
+        check_status: check_status,
+        clear_error: clear_error,
+        create_deposition: create_deposition,
+        flash_message: _flash_message,
+        getBytesWithUnit: getBytesWithUnit,
+        handle_field_msg: handle_field_msg,
+        handle_field_values: handle_field_values,
+        handle_response: handle_response,
+        init_autocomplete: init_autocomplete,
+        init_buttons: init_buttons,
+        init_ckeditor: init_ckeditor,
+        init_field_lists: init_field_lists,
+        init_inputs: init_inputs,
+        init_plupload: init_plupload,
+        init_save: init_save,
+        init_submit: init_submit,
+        init_typeaheadjs: init_typeaheadjs,
+        json_options: json_options,
+        paste_newline_splitter: paste_newline_splitter,
+        save_data: save_data,
+        save_field: save_field,
+        serialize_files: serialize_files,
+        serialize_form: serialize_form,
+        serialize_object: serialize_object,
+        set_loader: set_loader,
+        set_status: set_status,
+        submit: submit,
+        typeahead_selection: typeahead_selection,
+        unique_id: unique_id,
+    }
+})

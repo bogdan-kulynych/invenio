@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 ## This file is part of Invenio.
 ## Copyright (C) 2013, 2014 CERN.
 ##
@@ -31,6 +32,25 @@ import os
 import sys
 
 from setuptools import setup, find_packages
+from setuptools.command.install_lib import install_lib
+from distutils.command.build import build
+
+
+class _build(build):
+
+    """Compile catalog before building the package."""
+
+    sub_commands = [('compile_catalog', None)] + build.sub_commands
+
+
+class _install_lib(install_lib):
+
+    """Custom install_lib command."""
+
+    def run(self):
+        """Compile catalog before runing installation command."""
+        self.run_command('compile_catalog')
+        install_lib.run(self)
 
 
 install_requires = [
@@ -44,7 +64,7 @@ install_requires = [
     "feedparser==5.1.3",
     "fixture==1.5",
     "Flask==0.10.1",
-    "Flask-Admin==1.0.7",
+    "Flask-Admin>1.0.8,<1.1",
     "Flask-Assets==0.10",
     "Flask-Babel==0.9",
     "Flask-Breadcrumbs==0.1",
@@ -66,7 +86,7 @@ install_requires = [
     "jellyfish>=0.3.1",
     "Jinja2==2.7.3",
     "libmagic==1.0",
-    "lxml==3.1.2",
+    "lxml>=3.3",
     "mechanize==0.2.5",
     "msgpack-python==0.3.0",
     "MySQL-python==1.2.5",
@@ -76,7 +96,6 @@ install_requires = [
     "pyPDF==1.13",
     "pyPDF2",
     "PyLD>=0.5.2",
-    "pyRXP==1.16",
     "pyStemmer==1.3.0",
     # python-dateutil>=2.0 is only for Python3
     "python-dateutil>=1.5,<2.0",
@@ -106,8 +125,6 @@ extras_require = {
     ],
     "development": [
         "Flask-DebugToolbar==0.9.0",
-        "setuptools>=2.0",  # dad?
-        "setuptools-bower>=0.2,<1.0",
     ],
     "elasticsearch": [
         "pyelasticsearch>=0.6.1"
@@ -135,6 +152,16 @@ extras_require = {
     ],
     "sso": [
         "Flask-SSO>=0.1"
+    ],
+    # Alternative XML parser
+    #
+    # For pyRXP, the version on PyPI many not be the right one.
+    #
+    # $ pip install
+    # >    https://www.reportlab.com/ftp/pyRXP-1.16-daily-unix.tar.gz#egg=pyRXP
+    #
+    "pyrxp": [
+        "pyRXP==1.16-daily-unix"
     ]
 }
 
@@ -250,5 +277,9 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
     ],
     test_suite='invenio.testsuite.suite',
-    tests_require=tests_require
+    tests_require=tests_require,
+    cmdclass={
+        'build': _build,
+        'install_lib': _install_lib,
+    },
 )

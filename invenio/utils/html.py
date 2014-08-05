@@ -424,7 +424,7 @@ def get_mathjax_header(https=False):
         else:
             mathjax_path = "http://cdn.mathjax.org/mathjax/2.1-latest"
     else:
-        mathjax_path = "/MathJax"
+        mathjax_path = "/vendors/MathJax"
 
     if cfg['CFG_MATHJAX_RENDERS_MATHML']:
         mathjax_config = "TeX-AMS-MML_HTMLorMML"
@@ -538,7 +538,7 @@ def get_html_text_editor(name, id=None, content='', textual_content=None, width=
         /* Load the script only once, or else multiple instance of the editor on the same page will not work */
         var INVENIO_CKEDITOR_ALREADY_LOADED
             if (INVENIO_CKEDITOR_ALREADY_LOADED != 1) {
-                document.write('<script type="text/javascript" src="%(CFG_SITE_URL)s/ckeditor/ckeditor.js"><\/script>');
+                document.write('<script type="text/javascript" src="%(CFG_SITE_URL)s/vendors/ckeditor/ckeditor.js"><\/script>');
                 INVENIO_CKEDITOR_ALREADY_LOADED = 1;
             }
         //]]></script>
