@@ -297,7 +297,8 @@ def get_format_element_path(filename):
 
 
 def format_record(recID, of, ln=CFG_SITE_LANG, verbose=0,
-                  search_pattern=None, xml_record=None, user_info=None, qid="", extra_context={}):
+                  search_pattern=None, xml_record=None, record=None,
+                  user_info=None, qid="", extra_context={}):
     """
     Formats a record given output format. Main entry function of
     bibformat engine.
@@ -306,9 +307,13 @@ def format_record(recID, of, ln=CFG_SITE_LANG, verbose=0,
     language, search pattern, and with the specified output format.
     The function will define which format template must be applied.
 
-    You can either specify an record ID to format, or give its xml
-    representation.  if 'xml_record' is not None, then use it instead
-    of recID.
+    The record to be formatted can be specified with its ID (with
+    'recID' parameter), given as XML representation (with
+    'xml_record' parameter) or Record representation (with 'record'
+    parameter). If 'xml_record' or 'record' is specified,
+    'recID' is ignored (but should still be given for reference.
+    A dummy recid 0 or -1 could be used). If both 'xml_record' and 'record'
+    are specified, 'record' has priority.
 
     'user_info' allows to grant access to some functionalities on a
     page depending on the user's priviledges. 'user_info' is the same
@@ -323,6 +328,7 @@ def format_record(recID, of, ln=CFG_SITE_LANG, verbose=0,
                                                        9: errors and warnings, stop if error (debug mode ))
     @param search_pattern: list of strings representing the user request in web interface
     @param xml_record: an xml string representing the record to format
+    @param record: Record object representation
     @param user_info: the information of the user who will view the formatted page
     @return: formatted record
     """
@@ -339,7 +345,8 @@ def format_record(recID, of, ln=CFG_SITE_LANG, verbose=0,
     # But if format not found for new BibFormat, then call old BibFormat
 
     #Create a BibFormat Object to pass that contain record and context
-    bfo = BibFormatObject(recID, ln, search_pattern, xml_record, user_info, of)
+    bfo = BibFormatObject(recID, ln, search_pattern, xml_record, record,
+        user_info, of)
 
     if of.lower() != 'xm' and (not bfo.get_record()
                                             or record_empty(bfo.get_record())):
@@ -392,7 +399,7 @@ def format_record(recID, of, ln=CFG_SITE_LANG, verbose=0,
 
 
 def format_record_1st_pass(recID, of, ln=CFG_SITE_LANG, verbose=0,
-                           search_pattern=None, xml_record=None,
+                           search_pattern=None, xml_record=None, record=None,
                            user_info=None, on_the_fly=False,
                            save_missing=True, **kwargs):
     """
@@ -500,6 +507,7 @@ def format_record_1st_pass(recID, of, ln=CFG_SITE_LANG, verbose=0,
                                              verbose=verbose,
                                              search_pattern=search_pattern,
                                              xml_record=xml_record,
+                                             record=record,
                                              user_info=user_info,
                                              **kwargs)
         out += out_
@@ -548,10 +556,11 @@ def format_record_1st_pass(recID, of, ln=CFG_SITE_LANG, verbose=0,
 
 
 def format_record_2nd_pass(recID, template, ln=CFG_SITE_LANG,
-                           search_pattern=None, xml_record=None,
+                           search_pattern=None, xml_record=None, record=None,
                            user_info=None, of=None, verbose=0, **kwargs):
     # Create light bfo object
-    bfo = BibFormatObject(recID, ln, search_pattern, xml_record, user_info, of)
+    bfo = BibFormatObject(recID, ln, search_pattern, xml_record, record,
+        user_info, of)
     # Translations
     template = translate_template(template, ln)
     # Format template
@@ -1972,12 +1981,14 @@ class BibFormatObject(object):
     req = None # DEPRECATED: use bfo.user_info instead. Used by WebJournal.
 
     def __init__(self, recID, ln=CFG_SITE_LANG, search_pattern=None,
-                 xml_record=None, user_info=None, output_format=''):
+                 xml_record=None, record=None, user_info=None,
+                 output_format=''):
         """
         Creates a new bibformat object, with given record.
 
-        You can either specify an record ID to format, or give its xml representation.
-        if 'xml_record' is not None, use 'xml_record' instead of recID for the record.
+        You can either specify a record ID to format, give its xml
+        or Record object representation. 'record' has priority over
+        'xml_record', and 'xml_record' has priority over 'recID'
 
         'user_info' allows to grant access to some functionalities on
         a page depending on the user's priviledges. It is a dictionary
@@ -2000,11 +2011,15 @@ class BibFormatObject(object):
         @param ln: the language in which the record has to be formatted
         @param search_pattern: list of string representing the request used by the user in web interface
         @param xml_record: a xml string of the record to format
+        @param record: Record object representation
         @param user_info: the information of the user who will view the formatted page
         @param output_format: the output_format used for formatting this record
         """
         self.xml_record = None # *Must* remain empty if recid is given
-        if xml_record is not None:
+        if record is not None:
+            self.record = record.legacy_create_recstruct()
+            recID = long(record_get_field_value(self.record, "001")) or None
+        elif xml_record is not None:
             # If record is given as parameter
             self.xml_record = xml_record
             self.record = create_record(xml_record)[0]
